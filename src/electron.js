@@ -888,6 +888,7 @@ const defaultSettings = {
   remaps: {},
   hotkeys: [],
   hotkeyPercent: 10,
+  quickButtons: [],
   adjustmentTimes: [],
   adjustmentTimeIndividualDisplays: false,
   adjustmentTimeSpeed: "normal",

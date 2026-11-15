@@ -571,6 +571,24 @@ select {
     }
 }
 
+// Percentage fields in the quick brightness button rows. Same size as the
+// hotkey inputs above, which get their width from the global text input rule.
+.quick-buttons-settings {
+
+    input[type="number"] {
+        padding: 6px;
+        font-size: 14px;
+        height: auto;
+        box-sizing: border-box;
+        line-height: 1;
+        min-width: 235px;
+
+        &:focus {
+            border-color: var(--system-accent-color);
+        }
+    }
+}
+
 // DDC/CI Features 
 .feature-row {
     display: flex;

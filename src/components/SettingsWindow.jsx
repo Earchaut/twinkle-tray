@@ -750,6 +750,46 @@ export default class SettingsWindow extends PureComponent {
         this.adjustmentTimesUpdated()
     }
 
+    updateQuickButtons = (quickButtons) => {
+        this.state.rawSettings.quickButtons = quickButtons
+        // Clamp on the way out so a half-typed value can never reach the panel
+        window.sendSettings({ quickButtons: quickButtons.map(level => Math.min(100, Math.max(0, parseInt(level) || 0))) })
+        this.forceUpdate()
+    }
+
+    getQuickButtonsSettings = () => {
+        const quickButtons = (this.state.rawSettings.quickButtons || [])
+        return (
+            <div className="hotkey-monitors quick-buttons-settings">
+                {quickButtons.length ? null : <p>{T.t("SETTINGS_HOTKEYS_QUICK_EMPTY")}</p>}
+                {quickButtons.map((level, idx) => {
+                    return (
+                        <SettingsOption key={idx} className="win10-has-background" content={
+                            <div className="row hotkey-combo-input">
+                                <input type="number" min={0} max={100} step={1} value={level}
+                                    onChange={e => {
+                                        const newButtons = quickButtons.slice()
+                                        newButtons[idx] = e.target.value
+                                        this.updateQuickButtons(newButtons)
+                                    }} />
+                                <div className="suffix">%</div>
+                            </div>
+                        } input={
+                            <a className="button button-primary" onClick={() => {
+                                const newButtons = quickButtons.slice()
+                                newButtons.splice(idx, 1)
+                                this.updateQuickButtons(newButtons)
+                            }}>{deleteIcon} <span>{T.t("GENERIC_DELETE")}</span></a>
+                        } />
+                    )
+                })}
+                <p><a className="button" onClick={() => {
+                    this.updateQuickButtons(quickButtons.concat(50))
+                }}>+ {T.t("SETTINGS_HOTKEYS_QUICK_ADD")}</a></p>
+            </div>
+        )
+    }
+
     getHotkeyList = () => {
 
         const deleteHotkeyAction = (idx, actionIdx) => {
@@ -1630,6 +1670,12 @@ export default class SettingsWindow extends PureComponent {
                                         }}>+ {T.t("SETTINGS_HOTKEYS_ADD")}</a></p>
                                     </div>
 
+                                </div>
+
+                                <div className="pageSection">
+                                    <div className="sectionTitle">{T.t("SETTINGS_HOTKEYS_QUICK_TITLE")}</div>
+                                    <p>{T.t("SETTINGS_HOTKEYS_QUICK_DESC")}</p>
+                                    {this.getQuickButtonsSettings()}
                                 </div>
 
                                 <div className="pageSection">
