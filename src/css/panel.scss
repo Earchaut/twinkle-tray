@@ -344,7 +344,7 @@ body[data-is-win11="false"] #root {
             white-space: nowrap;
         }
 
-        .updateBar, .feature-power-icon, .feature-icon, .feature-row + .feature-row, .monitor-sliders.extended + .monitor-sliders.extended:before {
+        .updateBar, .feature-power-icon, .quick-buttons, .feature-icon, .feature-row + .feature-row, .monitor-sliders.extended + .monitor-sliders.extended:before {
             display: none;
         }
 
@@ -426,6 +426,31 @@ body[data-is-win11="false"] #root {
         font-size: 12.5px;
     }
 }
+.quick-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    flex-shrink: 0;
+
+    .quick-button {
+        font-size: 11px;
+        line-height: 1;
+        padding: 4px 5px;
+        border: 1px solid var(--tray-border);
+        border-radius: 4px;
+        color: var(--tray-text);
+        cursor: pointer;
+        white-space: nowrap;
+        user-select: none;
+        opacity: 0.75;
+
+        &:hover, &:focus {
+            opacity: 1;
+        }
+    }
+}
+
 .feature-power-icon {
     display: flex;
     justify-content: center;
@@ -644,7 +669,7 @@ body[data-is-win11="true"] {
 
             .name-row {
                 width: 26px;
-                .title, .feature-power-icon {
+                .title, .feature-power-icon, .quick-buttons {
                     display: none;
                 }
             }

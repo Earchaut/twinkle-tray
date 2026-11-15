@@ -13,6 +13,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
     // its event listener, so begin with the latest available snapshot.
     monitors: window.allMonitors || {},
     hideDisplays: window.settings?.hideDisplays || {},
+    quickButtons: window.settings?.quickButtons || [],
     linkedLevelsActive: false,
     names: {},
     update: false,
@@ -47,27 +48,37 @@ const BrightnessPanel = memo(function BrightnessPanel() {
     })
   }
 
-  // Handle <Slider> changes
-  const handleChange = (level, slider) => {
+  // Set a level on one monitor, or on all of them while levels are linked
+  const applyLevel = (level, hwid) => {
     const monitors = { ...state.monitors }
-    const sliderMonitor = monitors[slider.props.hwid]
     if (numMonitors && state.linkedLevelsActive) {
       // Update all monitors (linked)
       for (let key in monitors) {
-        const monitor = monitors[key]
-        monitor.brightness = level
+        monitors[key].brightness = level
       }
-      setState(prev => ({ ...prev, monitors }))
-      setLevelsChanged(true)
-      if (state.updateInterval === 999) syncBrightness()
-    } else if (numMonitors > 0) {
+    } else if (numMonitors > 0 && monitors[hwid]) {
       // Update single monitor
-      if (sliderMonitor) sliderMonitor.brightness = level;
-      setState(prev => ({ ...prev, monitors }))
-      setLevelsChanged(true)
-      if (state.updateInterval === 999) syncBrightness()
+      monitors[hwid].brightness = level
     }
+    setState(prev => ({ ...prev, monitors }))
+    setLevelsChanged(true)
+    if (state.updateInterval === 999) syncBrightness()
     window.pauseMonitorUpdates()
+  }
+
+  // Handle <Slider> changes
+  const handleChange = (level, slider) => applyLevel(level, slider.props.hwid)
+
+  // One-click brightness buttons shown next to the monitor name
+  const getQuickButtons = (monitor) => {
+    if (!state.quickButtons?.length) return null
+    return (
+      <div className="quick-buttons">
+        {state.quickButtons.map((level, idx) => (
+          <div className="quick-button" key={`${level}-${idx}`} onClick={() => applyLevel(level * 1, monitor.key)}>{level}%</div>
+        ))}
+      </div>
+    )
   }
 
   // Update monitor info
@@ -117,6 +128,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
     const remaps = (settings.remaps || {})
     const names = (settings.names || {})
     const hideDisplays = (settings.hideDisplays || {})
+    const quickButtons = (settings.quickButtons || [])
     setLevelsChanged(true)
     setState(prev => ({
       ...prev,
@@ -124,6 +136,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
       remaps,
       names,
       hideDisplays,
+      quickButtons,
       updateInterval,
       sleepAction
     }))
@@ -244,7 +257,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
         if (lastValidMonitor) {
           const monitor = lastValidMonitor
           return (
-            <Slider name={T.t("GENERIC_ALL_DISPLAYS")} id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} scrollAmount={window.settings?.scrollFlyoutAmount} />
+            <Slider name={T.t("GENERIC_ALL_DISPLAYS")} id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} afterName={getQuickButtons(monitor)} scrollAmount={window.settings?.scrollFlyoutAmount} />
           )
         }
         return (<div className="no-displays-message">{T.t("GENERIC_NO_COMPATIBLE_DISPLAYS")}</div>)
@@ -329,6 +342,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
                         <div className="name-row">
                           <div className="icon"><span>&#xE7F4;</span></div>
                           <div className="title">{getMonitorName(monitor, state.names)}</div>
+                          { getQuickButtons(monitor) }
                           { showPowerButton() }
                         </div>
                       </div>
@@ -338,7 +352,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
                 }
                 return (
                   <div className="monitor-sliders" key={monitor.key}>
-                    <Slider name={getMonitorName(monitor, state.names)} id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} afterName={showPowerButton()} scrollAmount={window.settings?.scrollFlyoutAmount} />
+                    <Slider name={getMonitorName(monitor, state.names)} id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} afterName={<>{getQuickButtons(monitor)}{showPowerButton()}</>} scrollAmount={window.settings?.scrollFlyoutAmount} />
                   </div>
                 )
               } else {
@@ -348,6 +362,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
                       <div className="name-row">
                         <div className="icon">{(monitor.type == "wmi" ? <span>&#xE770;</span> : <span>&#xE7F4;</span>)}</div>
                         <div className="title">{getMonitorName(monitor, state.names)}</div>
+                        {getQuickButtons(monitor)}
                         {showPowerButton()}
                       </div>
                     </div>
