@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import Slider from "./Slider";
 import DDCCISliders from "./DDCCISliders"
 import HDRSliders from "./HDRSliders";
@@ -27,6 +27,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
   const [lastLevels, setLastLevels] = useState([])
   const [T] = useState(new TranslateReact({}, {}))
   const [, setLocalizationVersion] = useState(0)
+  const brightnessSliderDragging = useRef(false)
 
   const numMonitors = useMemo(() => {
     let localNumMonitors = 0
@@ -49,25 +50,42 @@ const BrightnessPanel = memo(function BrightnessPanel() {
   }
 
   // Set a level on one monitor, or on all of them while levels are linked
-  const applyLevel = (level, hwid) => {
+  const applyLevel = (level, hwid, immediate = false) => {
     const monitors = { ...state.monitors }
+    const updatedMonitors = []
     if (numMonitors && state.linkedLevelsActive) {
       // Update all monitors (linked)
       for (let key in monitors) {
         monitors[key].brightness = level
+        updatedMonitors.push(monitors[key])
       }
     } else if (numMonitors > 0 && monitors[hwid]) {
       // Update single monitor
       monitors[hwid].brightness = level
+      updatedMonitors.push(monitors[hwid])
     }
     setState(prev => ({ ...prev, monitors }))
-    setLevelsChanged(true)
-    if (state.updateInterval === 999) syncBrightness()
+    if (immediate) {
+      setLevelsChanged(false)
+      for (const monitor of updatedMonitors) {
+        if (isAdjustableDisplay(monitor)) {
+          window.updateBrightness(monitor.id, monitor.brightness)
+        }
+      }
+    } else {
+      setLevelsChanged(true)
+      if (state.updateInterval === 999 && !brightnessSliderDragging.current) syncBrightness()
+    }
     window.pauseMonitorUpdates()
   }
 
   // Handle <Slider> changes
   const handleChange = (level, slider) => applyLevel(level, slider.props.hwid)
+  const handleRangeChangeStart = () => { brightnessSliderDragging.current = true }
+  const handleRangeChangeEnd = (changed, level, slider) => {
+    brightnessSliderDragging.current = false
+    if (changed) applyLevel(level, slider.props.hwid, true)
+  }
 
   // One-click brightness buttons shown next to the monitor name
   const getQuickButtons = (monitor) => {
@@ -75,7 +93,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
     return (
       <div className="quick-buttons">
         {state.quickButtons.map((level, idx) => (
-          <div className="quick-button" key={`${level}-${idx}`} onClick={() => applyLevel(level * 1, monitor.key)}>{level}%</div>
+          <div className="quick-button" key={`${level}-${idx}`} onClick={() => applyLevel(level * 1, monitor.key, true)}>{level}%</div>
         ))}
       </div>
     )
@@ -159,7 +177,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
   // Send new brightness to monitors, if changed
   const syncBrightness = () => {
     const monitors = state.monitors
-    if (init && levelsChanged && (window.showPanel || doBackgroundEvent) && numMonitors) {
+    if (init && levelsChanged && (window.showPanel || doBackgroundEvent) && numMonitors && !brightnessSliderDragging.current) {
       setDoBackgroundEvent(false)
       setLevelsChanged(false)
       try {
@@ -257,7 +275,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
         if (lastValidMonitor) {
           const monitor = lastValidMonitor
           return (
-            <Slider name={T.t("GENERIC_ALL_DISPLAYS")} id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} afterName={getQuickButtons(monitor)} scrollAmount={window.settings?.scrollFlyoutAmount} />
+            <Slider name={T.t("GENERIC_ALL_DISPLAYS")} id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} onRangeChangeStart={handleRangeChangeStart} onRangeChangeEnd={handleRangeChangeEnd} afterName={getQuickButtons(monitor)} scrollAmount={window.settings?.scrollFlyoutAmount} />
           )
         }
         return (<div className="no-displays-message">{T.t("GENERIC_NO_COMPATIBLE_DISPLAYS")}</div>)
@@ -352,7 +370,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
                 }
                 return (
                   <div className="monitor-sliders" key={monitor.key}>
-                    <Slider name={getMonitorName(monitor, state.names)} id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} afterName={<>{getQuickButtons(monitor)}{showPowerButton()}</>} scrollAmount={window.settings?.scrollFlyoutAmount} />
+                    <Slider name={getMonitorName(monitor, state.names)} id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} onRangeChangeStart={handleRangeChangeStart} onRangeChangeEnd={handleRangeChangeEnd} afterName={<>{getQuickButtons(monitor)}{showPowerButton()}</>} scrollAmount={window.settings?.scrollFlyoutAmount} />
                   </div>
                 )
               } else {
@@ -370,7 +388,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
                     { !isHDROnlySDR && (
                       <div className="feature-row feature-brightness">
                         <div className="feature-icon"><span className="icon vfix">&#xE706;</span></div>
-                        <Slider id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} scrollAmount={window.settings?.scrollFlyoutAmount} />
+                        <Slider id={monitor.id} level={monitor.brightness} min={0} max={100} num={monitor.num} monitortype={monitor.type} hwid={monitor.key} key={monitor.key} onChange={handleChange} onRangeChangeStart={handleRangeChangeStart} onRangeChangeEnd={handleRangeChangeEnd} scrollAmount={window.settings?.scrollFlyoutAmount} />
                       </div>
                     )}
                     <DDCCISliders monitor={monitor} monitorFeatures={monitorFeatures} scrollAmount={window.settings?.scrollFlyoutAmount} />

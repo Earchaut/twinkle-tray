@@ -11,9 +11,37 @@ export default class Slider extends Component {
         this.setState({ level: this.cap(event.target.value) }, this.fireChange)
     }
 
+    handleRangeChange = (event) => {
+        this.handleChange(event)
+        if (this.rangePointerActive) this.rangeChanged = true
+    }
+
+    handleRangePointerDown = () => {
+        if (this.rangePointerActive) return
+        this.rangePointerActive = true
+        this.rangeChanged = false
+        this.props.onRangeChangeStart?.()
+        window.addEventListener("pointerup", this.handleRangePointerUp)
+        window.addEventListener("pointercancel", this.handleRangePointerUp)
+    }
+
+    handleRangePointerUp = () => {
+        if (!this.rangePointerActive) return
+        this.rangePointerActive = false
+        window.removeEventListener("pointerup", this.handleRangePointerUp)
+        window.removeEventListener("pointercancel", this.handleRangePointerUp)
+        this.props.onRangeChangeEnd?.(this.rangeChanged, this.cap(this.state.level), this)
+        this.rangeChanged = false
+    }
+
     handleWheel = (event) => {
         if (this.props.scrolling === false) return false;
         this.setState({ level: this.cap((this.state.level * 1) + Math.sign(event.deltaY) * -1 * (this.props.scrollAmount ?? 1)) }, this.fireChange)
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener("pointerup", this.handleRangePointerUp)
+        window.removeEventListener("pointercancel", this.handleRangePointerUp)
     }
 
     fireChange = () => {
@@ -80,7 +108,7 @@ export default class Slider extends Component {
                 {this.getName()}
                 <div className="input--range" data-height={this.props.height}>
                     <div className="rangeGroup">
-                        <input type="range" min={min} max={max} value={level} data-percent={displayLevel(level) + "%"} onChange={this.handleChange} className="range" />
+                        <input type="range" min={min} max={max} value={level} data-percent={displayLevel(level) + "%"} onChange={this.handleRangeChange} onPointerDown={this.props.onRangeChangeEnd ? this.handleRangePointerDown : undefined} className="range" />
                         <div className="progress" style={this.progressStyle()}></div>
                     </div>
                     <input type="number" min={min} max={max} value={displayLevel(level)} onChange={this.handleChange} className="val" />
