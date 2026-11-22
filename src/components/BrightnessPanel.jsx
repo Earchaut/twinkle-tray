@@ -49,20 +49,32 @@ const BrightnessPanel = memo(function BrightnessPanel() {
   }
 
   // Set a level on one monitor, or on all of them while levels are linked
-  const applyLevel = (level, hwid) => {
+  const applyLevel = (level, hwid, immediate = false) => {
     const monitors = { ...state.monitors }
+    const updatedMonitors = []
     if (numMonitors && state.linkedLevelsActive) {
       // Update all monitors (linked)
       for (let key in monitors) {
         monitors[key].brightness = level
+        updatedMonitors.push(monitors[key])
       }
     } else if (numMonitors > 0 && monitors[hwid]) {
       // Update single monitor
       monitors[hwid].brightness = level
+      updatedMonitors.push(monitors[hwid])
     }
     setState(prev => ({ ...prev, monitors }))
-    setLevelsChanged(true)
-    if (state.updateInterval === 999) syncBrightness()
+    if (immediate) {
+      setLevelsChanged(false)
+      for (const monitor of updatedMonitors) {
+        if (isAdjustableDisplay(monitor)) {
+          window.updateBrightness(monitor.id, monitor.brightness)
+        }
+      }
+    } else {
+      setLevelsChanged(true)
+      if (state.updateInterval === 999) syncBrightness()
+    }
     window.pauseMonitorUpdates()
   }
 
@@ -75,7 +87,7 @@ const BrightnessPanel = memo(function BrightnessPanel() {
     return (
       <div className="quick-buttons">
         {state.quickButtons.map((level, idx) => (
-          <div className="quick-button" key={`${level}-${idx}`} onClick={() => applyLevel(level * 1, monitor.key)}>{level}%</div>
+          <div className="quick-button" key={`${level}-${idx}`} onClick={() => applyLevel(level * 1, monitor.key, true)}>{level}%</div>
         ))}
       </div>
     )
